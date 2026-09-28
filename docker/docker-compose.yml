@@ -1,29 +1,37 @@
 services:
   namenode:
     image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: namenode
     environment:
       - CLUSTER_NAME=mimic-cluster
-    ports: ["9870:9870", "9000:9000"]
-    volumes: ["namenode:/hadoop/dfs/name"]
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:8020
+      - HDFS_CONF_dfs_namenode_rpc-address=namenode:8020
+    ports:
+      - "9870:9870"
+      - "8020:8020"
+    volumes:
+      - "namenode:/hadoop/dfs/name"
+      - ./data:/data
 
   datanode:
     image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
     environment:
-      - SERVICE_PRECONDITION=namenode:9870
+      - SERVICE_PRECONDITION=namenode:8020
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:8020
     depends_on: [namenode]
     volumes: ["datanode:/hadoop/dfs/data"]
 
   resourcemanager:
     image: bde2020/hadoop-resourcemanager:2.0.0-hadoop3.2.1-java8
     environment:
-      - SERVICE_PRECONDITION=namenode:9000 namenode:9870 datanode:9864
+      - SERVICE_PRECONDITION=namenode:8020 namenode:9870 datanode:9864
     depends_on: [namenode, datanode]
     ports: ["8088:8088"]
 
   nodemanager:
     image: bde2020/hadoop-nodemanager:2.0.0-hadoop3.2.1-java8
     environment:
-      - SERVICE_PRECONDITION=namenode:9000 resourcemanager:8088
+      - SERVICE_PRECONDITION=resourcemanager:8088
     depends_on: [resourcemanager]
 
   hive-metastore-postgresql:
