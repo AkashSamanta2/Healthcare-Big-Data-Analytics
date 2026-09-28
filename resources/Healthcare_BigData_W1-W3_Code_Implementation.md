@@ -57,6 +57,7 @@ Add this line to `run_all_cleaning.sh` too (shown below) so it's not something y
 Also create four essentially-empty package marker files:
 
 **`src/common/__init__.py`**, **`src/schemas/__init__.py`**, **`src/cleaning/__init__.py`**, **`src/labels/__init__.py`** — each just needs one line:
+
 ```python
 # marks this directory as a Python package
 ```
@@ -717,6 +718,7 @@ of the report almost verbatim.
 ```
 
 ### ✅ End-of-W3 (cleaning half) checkpoint
+
 - [ ] All six `src/cleaning/*.py` scripts run successfully via `run_all_cleaning.sh`.
 - [ ] `reports/cleaning_report.md` exists and has one section per table.
 - [ ] `reports/data_dictionary.md` filled in.
@@ -858,6 +860,7 @@ is the industry-standard choice, don't just assert it without a source.]
 ```
 
 ### ✅ End-of-W3 (label half) checkpoint
+
 - [ ] `src/labels/build_readmission_labels.py` runs and writes `admissions_labeled` to HDFS.
 - [ ] `src/labels/validate_labels.py` runs and both assertions pass.
 - [ ] `reports/label_definition.md` filled in with the actual class-balance numbers.

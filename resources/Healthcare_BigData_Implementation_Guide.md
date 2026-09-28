@@ -13,17 +13,17 @@ This guide turns the proposal's timeline into concrete, executable steps. Each p
 
 ## Table of Contents
 
-0. [Prerequisites & Repository Structure](#0-prerequisites--repository-structure)
+0. [Prerequisites &amp; Repository Structure](#0-prerequisites--repository-structure)
 1. [W1–W2 — PhysioNet Access + Environment Setup](#1-w1w2--physionet-access--environment-setup)
-2. [W2–W3 — Ingestion & Data Cleaning (Spark)](#2-w2w3--ingestion--data-cleaning-spark)
+2. [W2–W3 — Ingestion &amp; Data Cleaning (Spark)](#2-w2w3--ingestion--data-cleaning-spark)
 3. [W3 — Readmission Label Definition](#3-w3--readmission-label-definition)
-4. [W4–W5 — Hive Analytics: Disease & Utilization Stats](#4-w4w5--hive-analytics-disease--utilization-stats)
+4. [W4–W5 — Hive Analytics: Disease &amp; Utilization Stats](#4-w4w5--hive-analytics-disease--utilization-stats)
 5. [W5–W6 — ICU Patient Analysis (Spark SQL)](#5-w5w6--icu-patient-analysis-spark-sql)
 6. [W6–W7 — Feature Engineering (MLlib)](#6-w6w7--feature-engineering-mllib)
 7. [W7–W8 — Readmission Prediction Model Training](#7-w7w8--readmission-prediction-model-training)
-8. [W8–W9 — Model Evaluation & Tuning](#8-w8w9--model-evaluation--tuning)
+8. [W8–W9 — Model Evaluation &amp; Tuning](#8-w8w9--model-evaluation--tuning)
 9. [W9 — Visualization (Matplotlib/Seaborn)](#9-w9--visualization-matplotlibseaborn)
-10. [W9–W10 — Buffer, Testing & Report Writing](#10-w9w10--buffer-testing--report-writing)
+10. [W9–W10 — Buffer, Testing &amp; Report Writing](#10-w9w10--buffer-testing--report-writing)
 11. [W10 — Final Presentation](#11-w10--final-presentation)
 12. [Appendix A — Suggested 2-Person Role Split](#appendix-a--suggested-2-person-role-split)
 13. [Appendix B — Troubleshooting Cheat Sheet](#appendix-b--troubleshooting-cheat-sheet)
@@ -34,6 +34,7 @@ This guide turns the proposal's timeline into concrete, executable steps. Each p
 ## 0. Prerequisites & Repository Structure
 
 **Before Week 1 starts:**
+
 - [ ] Both team members have a PhysioNet account (free, email verification only — no CITI training needed for the *demo* datasets).
 - [ ] Docker Desktop (or Docker Engine + Compose) installed, with at least **8 GB RAM allocated to Docker** (16 GB recommended if your laptop has it) if you're going the containerized route. If using GCP, both members added as collaborators on the project with Compute/Dataproc IAM roles.
 - [ ] A shared GitHub/GitLab repo created — this is your single source of truth for code, SQL, and the report.
@@ -75,6 +76,7 @@ Keep `notebooks/` for exploration only — every step that matters for reproduci
 **Goal:** Data in hand, cluster running, everyone able to run a Spark job against HDFS and query through Hive.
 
 ### Step 1.1 — Get the MIMIC Demo data
+
 1. Create/verify PhysioNet accounts for both members.
 2. Download one of:
    - **MIMIC-IV Clinical Database Demo (v2.2)** — recommended, more current schema, split into `hosp/` (patients, admissions, diagnoses_icd, labevents, prescriptions, transfers…) and `icu/` (icustays, chartevents, d_items, inputevents, outputevents…) modules.
@@ -84,6 +86,7 @@ Keep `notebooks/` for exploration only — every step that matters for reproduci
 4. Place the CSV/CSV.GZ files under `data/raw/`.
 
 ### Step 1.2 — Stand up the cluster
+
 You have two paths; pick based on team comfort and cost tolerance.
 
 **Option A — Dockerized Hadoop + Spark + Hive (recommended for a 2-person course project — free, reproducible, easy to reset).**
@@ -157,12 +160,14 @@ volumes:
 > Check Docker Hub for the current tag numbers before pulling — pin exact versions once they work, and commit `docker-compose.yml` to the repo so both teammates get an identical cluster with `docker compose up -d`.
 
 Verify each component:
+
 - NameNode UI: `http://localhost:9870`
 - ResourceManager (YARN) UI: `http://localhost:8088`
 - Spark Master UI: `http://localhost:8080`
 - `docker exec -it <namenode-container> hdfs dfsadmin -report` → confirm live DataNodes.
 
 **Option B — Google Cloud Platform (Dataproc).** If you'd rather not fight Docker networking on two different laptops:
+
 1. Enable Dataproc, GCS, and Compute Engine APIs on a shared GCP project.
 2. Create a small Dataproc cluster with Hive and Spark components (`gcloud dataproc clusters create mimic-cluster --region=<region> --optional-components=HIVE --enable-component-gateway --master-machine-type=n2-standard-2 --worker-machine-type=n2-standard-2 --num-workers=2`).
 3. Use a GCS bucket as your "HDFS" (`gs://<bucket>/mimic/raw/`) — Dataproc treats GCS paths transparently for Spark/Hive, so every HDFS path in this guide becomes a `gs://` path.
@@ -172,6 +177,7 @@ Verify each component:
 Either way, tune resources down for demo-sized data: in `yarn-site.xml` (or Dataproc cluster properties), set `yarn.nodemanager.resource.memory-mb` and `yarn.scheduler.maximum-allocation-mb` to something sane for a laptop (e.g., 4096 MB total is enough for this dataset), and cap `spark.executor.memory`/`spark.driver.memory` at 1–2g so the cluster doesn't hang waiting for resources it doesn't have.
 
 ### Step 1.3 — Load raw data into HDFS
+
 ```bash
 # from inside the namenode container, or via `hdfs` CLI configured to talk to it
 hdfs dfs -mkdir -p /data/mimic/raw/hosp /data/mimic/raw/icu
@@ -181,9 +187,11 @@ hdfs dfs -ls -R /data/mimic/raw
 ```
 
 ### Step 1.4 — Confirm Spark ↔ HDFS ↔ Hive ↔ YARN are wired together
+
 ```bash
 pyspark --master yarn --deploy-mode client
 ```
+
 ```python
 df = spark.read.csv("hdfs://namenode:9000/data/mimic/raw/hosp/admissions.csv.gz", header=True)
 df.printSchema()
@@ -192,10 +200,12 @@ spark.sql("SHOW DATABASES").show()   # confirms Hive metastore connectivity
 ```
 
 ### Step 1.5 — Set up the shared dev environment
+
 - `requirements.txt`: `pyspark`, `pandas`, `matplotlib`, `seaborn`, `jupyter`, `scikit-learn` (only for sanity-checking metrics, not for the MLlib model itself).
 - Agree on one working directory convention (HDFS paths, database name `mimic`) in the README so both members' code paths match.
 
 ### ✅ End-of-W2 checkpoint
+
 - [ ] Cluster comes up with one command (`docker compose up -d` or a documented `gcloud` command) and both members have run it successfully.
 - [ ] Raw MIMIC demo CSVs are visible under `/data/mimic/raw/` in HDFS.
 - [ ] A PySpark shell can read a raw CSV and Spark SQL can see the Hive metastore.
@@ -208,6 +218,7 @@ spark.sql("SHOW DATABASES").show()   # confirms Hive metastore connectivity
 **Goal:** Trustworthy, typed, deduplicated Parquet tables in HDFS that everything downstream reads from — never read raw CSVs again after this step.
 
 ### Step 2.1 — Define explicit schemas
+
 Don't let Spark infer schema on the real run (it's slow and silently mis-types columns like `subject_id` as double). Define `StructType` schemas per table, e.g.:
 
 ```python
@@ -232,10 +243,13 @@ admissions = spark.read.csv(
     header=True, schema=admissions_schema
 )
 ```
+
 Repeat for `patients`, `diagnoses_icd`, `d_icd_diagnoses`, `icustays`, `labevents`, `chartevents` (only load the columns/tables you'll actually use — `chartevents`/`labevents` are the largest files even in the demo, so trim columns early with `.select(...)`).
 
 ### Step 2.2 — Data quality pass
+
 For each table, systematically check and log:
+
 ```python
 from pyspark.sql import functions as F
 
@@ -247,13 +261,16 @@ null_report.show()
 dupes = admissions.groupBy("hadm_id").count().filter("count > 1")
 print("Duplicate hadm_ids:", dupes.count())
 ```
+
 Common MIMIC-specific cleaning tasks:
+
 - **Ages:** MIMIC-III shifts ages >89 to 300 for de-identification; MIMIC-IV instead buckets very old patients — check which version you have and cap/flag outlier ages rather than silently trusting them.
 - **Dates:** all timestamps are date-shifted per patient for de-identification — that's expected and fine for computing *durations* (LOS, days-to-readmit), just never treat the actual calendar date as meaningful.
 - **ICD codes:** MIMIC-IV mixes ICD-9 and ICD-10 — always join `diagnoses_icd` to `d_icd_diagnoses` on **both** `icd_code` and `icd_version`, or you'll get wrong/duplicate diagnosis titles.
 - **Missing `dischtime`/negative LOS:** drop or flag; a negative length-of-stay means a data issue, not a real record.
 
 ### Step 2.3 — Standardize & derive
+
 ```python
 admissions_clean = (admissions
     .filter(F.col("dischtime") > F.col("admittime"))
@@ -264,17 +281,21 @@ admissions_clean = (admissions
 ```
 
 ### Step 2.4 — Persist as partitioned Parquet in HDFS
+
 ```python
 admissions_clean.write.mode("overwrite").parquet(
     "hdfs://namenode:9000/data/mimic/cleaned/admissions"
 )
 ```
+
 Do the same for `patients_clean`, `diagnoses_clean`, `icustays_clean`, `labevents_clean` (filtered to the item IDs you actually need), `chartevents_clean` (same). Partitioning isn't very meaningful at this data size, but keep the pattern for realism/report credibility — e.g. partition `chartevents_clean` by a coarse `charttime` bucket if you want to demonstrate partition pruning.
 
 ### Step 2.5 — Write the data dictionary
+
 Create `reports/data_dictionary.md`: one row per table/column you kept, its type, source file, and any cleaning rule applied. You'll need this almost verbatim in the report's Methodology section — write it now, not in Week 9.
 
 ### ✅ End-of-W3 checkpoint
+
 - [ ] Every table you'll use has a cleaned Parquet version in `/data/mimic/cleaned/`.
 - [ ] A short `cleaning_report.md` documents null rates, duplicates removed, and rows dropped per table (this is evidence for your report, capture it while it's fresh).
 - [ ] Data dictionary drafted.
@@ -286,14 +307,17 @@ Create `reports/data_dictionary.md`: one row per table/column you kept, its type
 **Goal:** One unambiguous, well-justified label column per hospital admission: `readmit_30d ∈ {0,1}`.
 
 ### Step 3.1 — Choose the definition
+
 Use the standard, defensible definition: **an admission is a positive (`1`) if the same patient has another *unplanned* hospital admission within 30 days of this admission's discharge.** Justify in the report why 30 days (it's the CMS/industry-standard readmission window — cite it, don't just assert it).
 
 Decisions to make explicitly (write them down — a grader/reviewer will ask):
+
 - **Exclude deaths:** if `hospital_expire_flag = 1`, the patient cannot be readmitted — exclude that admission from the label-positive pool (it's automatically `0`/not applicable, and arguably should be excluded from the cohort entirely).
 - **Exclude planned readmissions:** if the *next* admission's `admission_type` is `ELECTIVE`, don't count it as a readmission event.
 - **Right-censoring:** a patient's *last* admission in the dataset might get readmitted after the data collection window ends — you can't know. Standard practice: label it `0` but document this as a known limitation (small demo dataset makes this more visible than it would be at full MIMIC scale).
 
 ### Step 3.2 — Implement with a window function
+
 ```python
 from pyspark.sql import Window
 from pyspark.sql import functions as F
@@ -319,13 +343,16 @@ labeled = (admissions
 ```
 
 ### Step 3.3 — Validate the label
+
 ```python
 labeled.groupBy("readmit_30d").count().show()
 labeled.filter("days_to_next_admit < 0").count()   # should be 0 — sanity check
 ```
+
 Expect strong class imbalance (positives likely well under 20% of admissions, and in absolute terms only a handful of cases given ~100 patients). **Note this number down explicitly** — you'll need it to justify your evaluation metric choice in Week 8 (accuracy is meaningless here; AUC/F1/recall matter far more).
 
 ### Step 3.4 — Persist the labeled cohort
+
 ```python
 labeled.select(
     "subject_id", "hadm_id", "admittime", "dischtime", "los_days",
@@ -334,6 +361,7 @@ labeled.select(
 ```
 
 ### ✅ End-of-W3 checkpoint
+
 - [ ] `admissions_labeled` Parquet table exists with a validated `readmit_30d` column.
 - [ ] Class balance numbers recorded (you'll cite these repeatedly later).
 - [ ] Label-definition assumptions written down in `reports/` (this becomes your Methodology subsection almost verbatim).
@@ -345,6 +373,7 @@ labeled.select(
 **Goal:** Answer "what diseases are most common, and how is the hospital being used" via HiveQL over the cleaned data — this is where Hive earns its place in your architecture (vs. just using Spark SQL for everything).
 
 ### Step 4.1 — Register external Hive tables over your Parquet
+
 ```sql
 CREATE DATABASE IF NOT EXISTS mimic;
 
@@ -367,9 +396,11 @@ CREATE EXTERNAL TABLE IF NOT EXISTS mimic.d_icd_diagnoses (
 STORED AS PARQUET
 LOCATION 'hdfs://namenode:9000/data/mimic/cleaned/d_icd_diagnoses';
 ```
+
 Repeat for `patients_clean`, `icustays_clean`. Save all DDL under `sql/ddl/`.
 
 ### Step 4.2 — Disease statistics queries (save each as a `.hql` under `sql/analytics/`)
+
 ```sql
 -- Top 20 diagnoses by number of distinct admissions
 SELECT d.long_title AS diagnosis, COUNT(DISTINCT dx.hadm_id) AS admission_count
@@ -391,6 +422,7 @@ LIMIT 30;
 ```
 
 ### Step 4.3 — Hospital utilization queries
+
 ```sql
 -- Admissions & average LOS by admission type
 SELECT admission_type, COUNT(*) AS num_admissions,
@@ -414,13 +446,16 @@ ORDER BY admit_month;
 ```
 
 ### Step 4.4 — Performance/format notes for the report
+
 - Convert to **ORC** instead of Parquet for a subset of the largest tables and note the file-size/query-time difference — this is easy "we evaluated storage formats" content for the report even at small scale.
 - Try `ANALYZE TABLE ... COMPUTE STATISTICS` and mention cost-based optimization even if the demo data is too small to show a dramatic speedup — the point at this project's scale is demonstrating you understand *why* it matters at production scale.
 
 ### Step 4.5 — Export results
+
 Run each `.hql` via `beeline`/`hive -f`, or `spark.sql(...)` reading the same Hive tables, and save outputs as small CSVs into `data/local_cache/` for Week 9 plotting.
 
 ### ✅ End-of-W5 checkpoint
+
 - [ ] All Hive tables created and queryable via `beeline`/HiveServer2.
 - [ ] Disease-stats and utilization `.hql` files committed under `sql/analytics/`.
 - [ ] Query result CSVs saved for visualization.
@@ -432,6 +467,7 @@ Run each `.hql` via `beeline`/`hive -f`, or `spark.sql(...)` reading the same Hi
 **Goal:** Characterize ICU stays and outcomes — this is the piece that most directly showcases Spark SQL joins across the largest table (`chartevents`).
 
 ### Step 5.1 — Identify vital-sign item IDs you care about
+
 Look up `d_items` (MIMIC-IV) / `D_ITEMS` (MIMIC-III) for the `itemid`s of Heart Rate, Respiratory Rate, SpO2, Systolic/Diastolic BP, Temperature. Hardcode a small dict — this is standard MIMIC practice.
 
 ```python
@@ -445,6 +481,7 @@ VITAL_ITEMIDS = {
 ```
 
 ### Step 5.2 — First-24h vitals aggregation per ICU stay
+
 ```python
 from pyspark.sql import functions as F
 
@@ -471,6 +508,7 @@ icu_features = icustays.join(vitals_24h, "stay_id", "left")
 ```
 
 ### Step 5.3 — Patient-characteristic vs. outcome analysis
+
 ```python
 patients = spark.table("mimic.patients_clean")
 admissions = spark.table("mimic.admissions_labeled")
@@ -493,6 +531,7 @@ icu_full.withColumn("age_band", F.when(F.col("anchor_age") < 40, "<40")
 ```
 
 ### Step 5.4 — Persist curated table
+
 ```python
 icu_full.write.mode("overwrite").parquet(
     "hdfs://namenode:9000/data/mimic/cleaned/icu_analysis"
@@ -500,6 +539,7 @@ icu_full.write.mode("overwrite").parquet(
 ```
 
 ### ✅ End-of-W6 checkpoint
+
 - [ ] `icu_analysis` table has first-24h vitals joined with demographics and outcomes per ICU stay.
 - [ ] At least 3 ICU-outcome relationships explored and saved (e.g., LOS by unit, mortality by admission type, LOS by age band).
 
@@ -510,17 +550,18 @@ icu_full.write.mode("overwrite").parquet(
 **Goal:** A single `features` vector column per admission, ready for `pyspark.ml` estimators, with no leakage.
 
 ### Step 6.1 — Assemble the feature table (join everything to `admissions_labeled`)
+
 Build these per-`hadm_id` features **using only information available at or before discharge of the index admission** (this is the single most important correctness rule — including anything from *after* discharge, or from the readmission itself, is data leakage):
 
-| Feature | Source |
-|---|---|
-| `age`, `gender` | patients |
-| `admission_type`, `insurance`, `race` | admissions |
-| `los_days` | admissions |
-| `num_prior_admissions` | count of this patient's admissions with `admittime` earlier than this one |
-| `num_diagnoses` | count of `diagnoses_icd` rows for this `hadm_id` |
-| `had_icu_stay` (0/1), `icu_los_days` | icustays |
-| `avg_heart_rate_24h`, `avg_resp_rate_24h`, … | icu_analysis (Step 5) |
+| Feature                                           | Source                                                                     |
+| ------------------------------------------------- | -------------------------------------------------------------------------- |
+| `age`, `gender`                               | patients                                                                   |
+| `admission_type`, `insurance`, `race`       | admissions                                                                 |
+| `los_days`                                      | admissions                                                                 |
+| `num_prior_admissions`                          | count of this patient's admissions with`admittime` earlier than this one |
+| `num_diagnoses`                                 | count of`diagnoses_icd` rows for this `hadm_id`                        |
+| `had_icu_stay` (0/1), `icu_los_days`          | icustays                                                                   |
+| `avg_heart_rate_24h`, `avg_resp_rate_24h`, … | icu_analysis (Step 5)                                                      |
 
 ```python
 w_prior = Window.partitionBy("subject_id").orderBy("admittime").rowsBetween(Window.unboundedPreceding, -1)
@@ -540,6 +581,7 @@ feature_df = (admissions_feat
 ```
 
 ### Step 6.2 — Encode categoricals, impute, scale
+
 ```python
 from pyspark.ml.feature import StringIndexer, OneHotEncoder, VectorAssembler, StandardScaler, Imputer
 from pyspark.ml import Pipeline
@@ -564,6 +606,7 @@ featurized = pipeline_model.transform(feature_df)
 ```
 
 ### Step 6.3 — Split, and think about imbalance
+
 ```python
 train, test = featurized.randomSplit([0.8, 0.2], seed=42)
 
@@ -572,15 +615,18 @@ neg = train.filter("readmit_30d = 0").count()
 train = train.withColumn("class_weight",
     F.when(F.col("readmit_30d") == 1, neg / (pos + neg)).otherwise(pos / (pos + neg)))
 ```
+
 Given the tiny positive class, also consider a **stratified** split (sample positives/negatives separately at 80/20 each, then union) rather than a pure random split, so your test set isn't left with zero or one positive case.
 
 ### Step 6.4 — Persist
+
 ```python
 pipeline_model.write().overwrite().save("hdfs://namenode:9000/data/mimic/models/feature_pipeline")
 featurized.write.mode("overwrite").parquet("hdfs://namenode:9000/data/mimic/cleaned/features")
 ```
 
 ### ✅ End-of-W7 checkpoint
+
 - [ ] `features` Parquet table with a single dense `features` vector column and `readmit_30d` label.
 - [ ] Feature pipeline (`Pipeline`/`PipelineModel`) saved to HDFS so it can be reapplied without retraining indexers/scalers.
 - [ ] Train/test split done with the class-imbalance issue explicitly handled (weights and/or stratified split), and documented.
@@ -592,6 +638,7 @@ featurized.write.mode("overwrite").parquet("hdfs://namenode:9000/data/mimic/clea
 **Goal:** 2–3 trained candidate models with a consistent evaluation protocol, chosen for a small, imbalanced binary classification problem.
 
 ### Step 7.1 — Baseline: Logistic Regression
+
 ```python
 from pyspark.ml.classification import LogisticRegression
 from pyspark.ml.evaluation import BinaryClassificationEvaluator
@@ -603,19 +650,24 @@ evaluator = BinaryClassificationEvaluator(labelCol="readmit_30d", metricName="ar
 auc_lr = evaluator.evaluate(lr_model.transform(test))
 print("LR AUC:", auc_lr)
 ```
+
 Always train and report the baseline first — it's your sanity check and your "did the fancier model actually help" comparison point.
 
 ### Step 7.2 — Tree-based models
+
 ```python
 from pyspark.ml.classification import RandomForestClassifier, GBTClassifier
 
 rf = RandomForestClassifier(featuresCol="features", labelCol="readmit_30d", seed=42)
 gbt = GBTClassifier(featuresCol="features", labelCol="readmit_30d", seed=42, maxIter=50)
 ```
+
 Note: `GBTClassifier` doesn't support `weightCol` in older MLlib versions — check your Spark version; if unsupported, rely on the stratified split instead for GBT.
 
 ### Step 7.3 — Cross-validation
+
 With only ~100 patients, **3-fold** CV is more sensible than 5- or 10-fold (folds that small get noisy fast):
+
 ```python
 from pyspark.ml.tuning import CrossValidator, ParamGridBuilder
 
@@ -629,20 +681,23 @@ cv = CrossValidator(estimator=rf, estimatorParamMaps=paramGrid,
 cv_model = cv.fit(train)
 print("Best RF AUC (CV):", max(cv_model.avgMetrics))
 ```
+
 Repeat the same pattern for GBT with its own small param grid.
 
 ### Step 7.4 — Track experiments
+
 Keep a simple `reports/experiment_log.md` table as you go:
 
-| Model | Params | Train AUC | Test AUC | Notes |
-|---|---|---|---|---|
-| LogisticRegression | maxIter=50 | … | … | baseline |
-| RandomForest | numTrees=100, maxDepth=6 | … | … | best via CV |
-| GBT | maxIter=50 | … | … | |
+| Model              | Params                   | Train AUC | Test AUC | Notes       |
+| ------------------ | ------------------------ | --------- | -------- | ----------- |
+| LogisticRegression | maxIter=50               | …        | …       | baseline    |
+| RandomForest       | numTrees=100, maxDepth=6 | …        | …       | best via CV |
+| GBT                | maxIter=50               | …        | …       |             |
 
 This table becomes your Results section directly — fill it in live, don't reconstruct it from memory in Week 9.
 
 ### ✅ End-of-W8 checkpoint
+
 - [ ] At least 2 model families trained (Logistic Regression + one tree ensemble).
 - [ ] Cross-validation run and best hyperparameters recorded.
 - [ ] Experiment log populated with train/test AUC for every run.
@@ -654,6 +709,7 @@ This table becomes your Results section directly — fill it in live, don't reco
 **Goal:** Pick a final model with metrics appropriate for a small, imbalanced dataset (not accuracy), understand what drives its predictions, and save it.
 
 ### Step 8.1 — Metrics beyond AUC
+
 ```python
 from pyspark.mllib.evaluation import MulticlassMetrics
 
@@ -669,9 +725,11 @@ print("Precision (readmit=1):", metrics.precision(1.0))
 print("Recall (readmit=1):", metrics.recall(1.0))
 print("F1 (readmit=1):", metrics.fMeasure(1.0))
 ```
+
 With so few positive test cases, also report the **raw counts** (e.g., "3 of 5 true readmissions correctly flagged") alongside the percentages — percentages alone on tiny denominators can be misleading, and a careful reviewer will want the raw numbers.
 
 ### Step 8.2 — Feature importance
+
 ```python
 importances = best_model.featureImportances
 feature_names = [f"{c}_vec" for c in categorical_cols] + [f"{c}_imp" for c in numeric_cols]
@@ -679,18 +737,23 @@ feature_names = [f"{c}_vec" for c in categorical_cols] + [f"{c}_imp" for c in nu
 # carefully via pipeline_model.stages[...] metadata, or report importance at the
 # raw-feature-group level rather than per-one-hot-slot if the mapping gets messy.
 ```
+
 Discuss which features dominate (commonly: prior admission count, LOS, number of diagnoses) — this is good report/presentation content and is more defensible clinically than a bare AUC number.
 
 ### Step 8.3 — Tune against overfitting
+
 Compare train AUC vs. test AUC from your experiment log. If train AUC is much higher than test AUC (very likely with tree ensembles on ~80 training rows), that's expected at this data size — **explicitly discuss it as a limitation** rather than chasing a train-AUC number that won't generalize. Try `maxDepth` reduction, `minInstancesPerNode` increases, and fewer features before concluding you're just data-limited.
 
 ### Step 8.4 — Save the final model
+
 ```python
 best_model.write().overwrite().save("hdfs://namenode:9000/data/mimic/models/readmission_rf")
 ```
+
 Also save a short `model_card.md`: model type, features used, training data size, class balance, chosen metrics and their values, and known limitations — this is increasingly expected practice for any ML deliverable and doubles as report content.
 
 ### ✅ End-of-W9 (eval half) checkpoint
+
 - [ ] Confusion matrix, precision/recall/F1, and AUC all recorded for the final model.
 - [ ] Feature importance analysis complete with a plain-language interpretation.
 - [ ] Final `PipelineModel`/classifier saved to HDFS; `model_card.md` written.
@@ -702,6 +765,7 @@ Also save a short `model_card.md`: model type, features used, training data size
 **Goal:** A small, reusable set of publication-quality figures pulled from your Hive/Spark aggregates (never from raw multi-million-row tables — always aggregate in Spark/Hive first, then `.toPandas()`).
 
 ### Step 9.1 — Pull only aggregated results to Pandas
+
 ```python
 import pandas as pd
 
@@ -774,9 +838,11 @@ plt.savefig("reports/figures/feature_importance.png", dpi=150)
 ```
 
 ### Step 9.3 — Style consistency
+
 Set one `sns.set_theme()` call and one color palette at the top of a shared `src/viz/style.py` and import it everywhere, so all 7+ figures look like they belong to the same report.
 
 ### ✅ End-of-W9 checkpoint
+
 - [ ] All 7 figures generated and saved into `reports/figures/`.
 - [ ] Each figure has a one-line caption drafted (goes straight into the report).
 
@@ -787,12 +853,14 @@ Set one `sns.set_theme()` call and one color palette at the top of a shared `src
 **Goal:** A pipeline that reproduces cleanly from a fresh cluster, and a complete written report.
 
 ### Step 10.1 — End-to-end reproducibility test
+
 - [ ] Tear down and rebuild the cluster from scratch (`docker compose down -v && docker compose up -d`, or a fresh Dataproc cluster).
 - [ ] Re-run ingestion → cleaning → labeling → Hive DDL/analytics → ICU analysis → feature engineering → model training → visualization **in order, from the committed scripts only** (no notebook state, no manual fixes).
 - [ ] Time each stage — you'll want rough runtimes for the report/presentation ("ingestion + cleaning: ~4 min on a 2-node local cluster").
 - [ ] Fix anything that breaks; this is exactly what "Buffer" time in the timeline is for — don't skip it, this is where most last-minute project failures get caught.
 
 ### Step 10.2 — Report outline (mirrors your existing proposal structure — extend it)
+
 1. **Title / Abstract** — reuse and lightly extend your proposal abstract with actual results.
 2. **Introduction & Objectives** — ICU analysis, disease statistics, hospital utilization, readmission prediction (as in the proposal).
 3. **Related Work** — 3–5 sentences on prior MIMIC-based readmission studies (brief, not a full literature review).
@@ -815,14 +883,17 @@ Set one `sns.set_theme()` call and one color palette at the top of a shared `src
 10. **References** — MIMIC citation (required by the license), any papers cited in Related Work.
 
 ### Step 10.3 — Architecture diagram
+
 Sketch: `Raw CSVs → HDFS → Spark (clean/transform) → HDFS Parquet ⇄ Hive (analytics) ` and `→ Spark MLlib (features/model) → HDFS model artifact`, with `YARN` boxed around Spark/Hive as the resource manager, and `Python (Matplotlib/Seaborn)` pulling from both Hive query outputs and MLlib evaluation outputs into `reports/figures/`. Keep it to one clean box-and-arrow diagram — this is usually the single most-referenced figure in both the report and the presentation.
 
 ### Step 10.4 — Cleanup pass
+
 - [ ] Remove dead code/notebooks that duplicate what's in `src/`.
 - [ ] Make sure `README.md` alone is enough for someone else to reproduce your entire pipeline (setup → run → outputs).
 - [ ] Spell-check and cross-check every number quoted in the report against `experiment_log.md` and `cleaning_report.md` — mismatches between report text and actual logged numbers are the most common thing graders catch.
 
 ### ✅ End-of-W10 (buffer half) checkpoint
+
 - [ ] Fresh cluster → full pipeline → figures, run start-to-finish without manual intervention.
 - [ ] Report drafted against the outline above, all figures embedded with captions.
 - [ ] README finalized.
@@ -834,6 +905,7 @@ Sketch: `Raw CSVs → HDFS → Spark (clean/transform) → HDFS Parquet ⇄ Hive
 **Goal:** A tight, demo-backed talk that doesn't oversell the small-data results.
 
 ### Step 11.1 — Slide outline (aim for ~10–12 slides for a typical 10–15 min slot)
+
 1. Title + team
 2. Problem statement & objectives (4 bullets: ICU, disease, utilization, readmission)
 3. Dataset & its scale (be upfront about the demo-size caveat here, not buried)
@@ -848,9 +920,11 @@ Sketch: `Raw CSVs → HDFS → Spark (clean/transform) → HDFS Parquet ⇄ Hive
 12. Q&A / thank you
 
 ### Step 11.2 — Demo script
+
 Decide **live demo vs. recorded screen capture** based on how reliable your cluster startup is — a recorded 60–90 second clip of `docker compose up` → HDFS listing → a Hive query → a Spark job running on the YARN UI → a figure being generated is much safer than risking a live cluster hang in front of an audience. Have the live option ready as backup only if time allows.
 
 ### Step 11.3 — Anticipated questions to prep answers for
+
 - "Why is your dataset so small — how would this scale to real MIMIC-IV (60k+ patients)?" (Have a concrete answer: same pipeline, more HDFS storage/YARN nodes, same Hive/Spark code with wider partitioning.)
 - "Why 30 days for readmission, and how did you handle patients with no follow-up admission in the data?" (Point to Step 3.1's documented assumptions.)
 - "Why Random Forest/GBT over deep learning?" (Small-n, tabular, interpretability via feature importance — a defensible, honest answer.)
@@ -862,16 +936,16 @@ Decide **live demo vs. recorded screen capture** based on how reliable your clus
 
 A workable split that keeps both members hands-on with the full stack while giving each a clear primary lane:
 
-| Weeks | Member A (suggested: Data Engineering lead) | Member B (suggested: ML/Analytics lead) |
-|---|---|---|
-| W1–W2 | Cluster setup (Docker/GCP), HDFS loading | PhysioNet data download/validation, repo scaffolding |
-| W2–W3 | Spark cleaning jobs, data dictionary | Data quality checks, label definition logic |
-| W4–W5 | Hive DDL + disease/utilization queries | ICU Spark SQL analysis (parallel workstream) |
-| W6–W7 | Feature engineering pipeline | Class-imbalance strategy, train/test split design |
-| W7–W8 | Model training infra, CV setup | Model selection, hyperparameter grids |
-| W8–W9 | Evaluation metrics, feature importance | Visualization suite |
-| W9–W10 | End-to-end reproducibility test | Report writing (owns final draft) |
-| W10 | Architecture/demo slides | Results/discussion slides |
+| Weeks   | Member A (suggested: Data Engineering lead) | Member B (suggested: ML/Analytics lead)              |
+| ------- | ------------------------------------------- | ---------------------------------------------------- |
+| W1–W2  | Cluster setup (Docker/GCP), HDFS loading    | PhysioNet data download/validation, repo scaffolding |
+| W2–W3  | Spark cleaning jobs, data dictionary        | Data quality checks, label definition logic          |
+| W4–W5  | Hive DDL + disease/utilization queries      | ICU Spark SQL analysis (parallel workstream)         |
+| W6–W7  | Feature engineering pipeline                | Class-imbalance strategy, train/test split design    |
+| W7–W8  | Model training infra, CV setup              | Model selection, hyperparameter grids                |
+| W8–W9  | Evaluation metrics, feature importance      | Visualization suite                                  |
+| W9–W10 | End-to-end reproducibility test             | Report writing (owns final draft)                    |
+| W10     | Architecture/demo slides                    | Results/discussion slides                            |
 
 Both members should review and be able to explain every stage, regardless of who wrote the code — split by ownership, not by silo.
 
@@ -879,16 +953,16 @@ Both members should review and be able to explain every stage, regardless of who
 
 ## Appendix B — Troubleshooting Cheat Sheet
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| DataNode container keeps restarting | NameNode not ready yet / clock skew | Check `SERVICE_PRECONDITION` env vars, `docker logs`, ensure host clock is correct |
-| `pyspark --master yarn` hangs at `ACCEPTED` | Not enough YARN memory configured for a laptop | Lower `yarn.nodemanager.resource.memory-mb` and `spark.executor.memory` |
-| Hive metastore connection refused | Postgres-backed metastore container not up before HiveServer2 starts | Add/verify `SERVICE_PRECONDITION` on `hive-metastore-postgresql:5432`; restart `hive-metastore` after Postgres is healthy |
-| `AnalysisException: Table or view not found` in Spark SQL | Spark session isn't Hive-enabled | Use `SparkSession.builder.enableHiveSupport()` and confirm `hive-site.xml` is on the Spark classpath |
-| Wrong/duplicate diagnosis titles after join | Joined `diagnoses_icd` to `d_icd_diagnoses` on `icd_code` only | Join on **both** `icd_code` and `icd_version` (ICD-9 vs ICD-10 codes overlap) |
-| Model AUC looks suspiciously perfect (~1.0) | Data leakage — a feature encodes post-discharge or readmission info | Re-audit every feature against the "known at/before this discharge" rule in Step 6.1 |
-| CrossValidator errors on tiny folds | numFolds too high for dataset size | Drop to `numFolds=3`, or use a single stratified train/test split with no CV for the smallest models |
-| `.toPandas()` step is slow/hangs | Pulling an unaggregated large table instead of an aggregate | Always aggregate in Spark/Hive first; only bring small summary tables to Pandas |
+| Symptom                                                     | Likely cause                                                         | Fix                                                                                                                            |
+| ----------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| DataNode container keeps restarting                         | NameNode not ready yet / clock skew                                  | Check`SERVICE_PRECONDITION` env vars, `docker logs`, ensure host clock is correct                                          |
+| `pyspark --master yarn` hangs at `ACCEPTED`             | Not enough YARN memory configured for a laptop                       | Lower`yarn.nodemanager.resource.memory-mb` and `spark.executor.memory`                                                     |
+| Hive metastore connection refused                           | Postgres-backed metastore container not up before HiveServer2 starts | Add/verify`SERVICE_PRECONDITION` on `hive-metastore-postgresql:5432`; restart `hive-metastore` after Postgres is healthy |
+| `AnalysisException: Table or view not found` in Spark SQL | Spark session isn't Hive-enabled                                     | Use`SparkSession.builder.enableHiveSupport()` and confirm `hive-site.xml` is on the Spark classpath                        |
+| Wrong/duplicate diagnosis titles after join                 | Joined`diagnoses_icd` to `d_icd_diagnoses` on `icd_code` only  | Join on**both** `icd_code` and `icd_version` (ICD-9 vs ICD-10 codes overlap)                                         |
+| Model AUC looks suspiciously perfect (~1.0)                 | Data leakage — a feature encodes post-discharge or readmission info | Re-audit every feature against the "known at/before this discharge" rule in Step 6.1                                           |
+| CrossValidator errors on tiny folds                         | numFolds too high for dataset size                                   | Drop to`numFolds=3`, or use a single stratified train/test split with no CV for the smallest models                          |
+| `.toPandas()` step is slow/hangs                          | Pulling an unaggregated large table instead of an aggregate          | Always aggregate in Spark/Hive first; only bring small summary tables to Pandas                                                |
 
 ---
 
