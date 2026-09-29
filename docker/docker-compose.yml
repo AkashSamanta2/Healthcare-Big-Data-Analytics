@@ -12,9 +12,11 @@ services:
     volumes:
       - "namenode:/hadoop/dfs/name"
       - ./data:/data
+      - ..:/workspace
 
   datanode:
     image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: datanode
     environment:
       - SERVICE_PRECONDITION=namenode:8020
       - CORE_CONF_fs_defaultFS=hdfs://namenode:8020
@@ -23,6 +25,7 @@ services:
 
   resourcemanager:
     image: bde2020/hadoop-resourcemanager:2.0.0-hadoop3.2.1-java8
+    container_name: resourcemanager
     environment:
       - SERVICE_PRECONDITION=namenode:8020 namenode:9870 datanode:9864
     depends_on: [namenode, datanode]
@@ -30,15 +33,18 @@ services:
 
   nodemanager:
     image: bde2020/hadoop-nodemanager:2.0.0-hadoop3.2.1-java8
+    container_name: nodemanager
     environment:
       - SERVICE_PRECONDITION=resourcemanager:8088
     depends_on: [resourcemanager]
 
   hive-metastore-postgresql:
     image: bde2020/hive-metastore-postgresql:2.3.0
+    container_name: hive-metastore-postgresql
 
   hive-metastore:
     image: bde2020/hive:2.3.2-postgresql-metastore
+    container_name: hive-metastore
     command: /opt/hive/bin/hive --service metastore
     environment:
       - SERVICE_PRECONDITION=namenode:9870 datanode:9864 hive-metastore-postgresql:5432
@@ -47,20 +53,29 @@ services:
 
   hiveserver2:
     image: bde2020/hive:2.3.2-postgresql-metastore
+    container_name: hiveserver2
     environment:
       - SERVICE_PRECONDITION=hive-metastore:9083
     ports: ["10000:10000"]
+    volumes:
+      - ..:/workspace
     depends_on: [hive-metastore]
 
   spark-master:
     image: bde2020/spark-master:3.1.1-hadoop3.2
+    container_name: spark-master
     ports: ["8080:8080", "7077:7077"]
+    volumes:
+      - ..:/workspace
 
   spark-worker:
     image: bde2020/spark-worker:3.1.1-hadoop3.2
+    container_name: spark-worker
     environment:
       - SPARK_MASTER=spark://spark-master:7077
     depends_on: [spark-master]
+    volumes:
+      - ..:/workspace
 
 volumes:
   namenode:

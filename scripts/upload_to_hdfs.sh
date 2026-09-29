@@ -1,24 +1,7 @@
 #!/bin/bash
-
-echo "Uploading MIMIC-IV files to HDFS..."
-
-docker exec namenode bash -c "
+# Runs INSIDE the namenode container. Copies raw MIMIC files into HDFS.
 set -e
-
-hdfs dfs -mkdir -p /data/mimic/raw
-
-hdfs dfs -put -f /data/raw/hosp/*.csv.gz /data/mimic/raw/
-
-hdfs dfs -put -f /data/raw/icu/*.csv.gz /data/mimic/raw/
-"
-
-if [ $? -eq 0 ]; then
-    echo "Upload completed successfully"
-else
-    echo "Upload failed"
-fi
-
-
-docker exec namenode bash -c "
-hdfs dfs -ls /data/mimic/raw
-"
+hdfs dfs -mkdir -p /data/mimic/raw/hosp /data/mimic/raw/icu
+hdfs dfs -put -f ./data/raw/hosp/*.csv.gz /data/mimic/raw/hosp/
+hdfs dfs -put -f ./data/raw/icu/*.csv.gz  /data/mimic/raw/icu/
+hdfs dfs -ls -R /data/mimic/raw
