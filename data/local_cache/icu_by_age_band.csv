@@ -1,0 +1,4 @@
+age_band,n_stays,avg_icu_los_days
+40-64,68,3.46
+65+,62,3.95
+<40,10,3.46
