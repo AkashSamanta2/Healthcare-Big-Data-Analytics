@@ -1,39 +1,8 @@
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-
-# Virtual environments
-venv/
 .venv/
-env/
-
-# Jupyter
-.ipynb_checkpoints/
-
-# IDE
-.vscode/
-.idea/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Python cache
-.pytest_cache/
-
-# Large datasets
-data/processed/*
-
-# Model files
-*.pth
-*.pt
-*.ckpt
-*.h5
-*.keras
-
-# Logs
-*.log
-
-# Environment/secrets
-.env
+__pycache__/
+*.pyc
+data/raw/
+data/local_cache/
+data/local-cache/
+docker/data/
+filetree.txt
