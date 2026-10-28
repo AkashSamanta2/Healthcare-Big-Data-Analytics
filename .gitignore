@@ -1,8 +1,39 @@
+
+# Python virtual environments
 .venv/
+venv/
+env/
+
+# Python cache
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyd
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Generated data and model artifacts
 data/raw/
-data/local_cache/
-data/local-cache/
-docker/data/
+data/processed/
+*.parquet
+*.pkl
+*.joblib
+*.pt
+*.pth
+
+# Logs and temporary files
+*.log
+*.tmp
+
+# Generated file tree
 filetree.txt
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
